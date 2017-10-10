@@ -1,15 +1,41 @@
-# (Optional) Reaction Game
-On to the sort of optional part of the lab. I only say "sort of" because I really think that you should try to implement a game just to not only have a little fun with the class, but also start thinking about what behaviors you want your system to exhibit. Below are only a few recommendations I can think of, but if you want, please show me your creative side and think of another game to implement.
+# Read Me for Button interrupt
+Author: Thai Nghiem (collaborate with Ardit Pranvoku)
 
-## Task
-The final part of this lab is to generate a game using buttons, timers, and LEDS that is meant to be played with let's say 2+ players. Your game does not have to be complicated, however, I think it would be kind of cool as people start making these games that we can test them out in lab. Along with some awesome documentation to explain how to play your game, you need to also demonstrate to your Professor and/or the Lab Instructor that your game actually works to get credit for this part of the lab. The reason we want to see it in person is A) so we can bask in the glory that is your game, and B) so we can get a good look at the game and see what you have implemented from the lab exercises so far. This is not meant to be a "Grill session" where we rake you over the coals about every single line of code, but we are probably going to ask a few questions just to get an idea for the different ways people are implementing these game ideas.
+Implements a timer based interrupt to blink the LED at a designated frequency.
+The watchdog timer must be stopped with the line 
+```c
+WDTCTL = WDTPW + WDTHOLD or WDTCTL = WDTPW | WDTHOLD.
+```
+Else, the processor will reset. <br />
+The desired led pins and bits must be set to 1 to configure it to be an output.
+The desired button pin and bit must be to 0 to configure it to be an input .<br />
+Also,  PXREN |= BITX; must be used to enable the pullup resistor for that button. <br /> 
 
-## "But what processor should I be doing this on?"
-Since this is technically an optional part of the lab, we are not going to force you into picking just one processor or make you do it for them all. What I personally would love to see is people using boards like the FR6989 or F5529 and take advantage of a ton of I/O to maybe do something interesting with LED displays or multiple inputs.
+First, 2 unsigned ints player1 and player 2 are initialized as 0.<br />
+Then, the code designates 3 LEDS as outputs.<br />
+Next, it designates 2 buttons as inputs, and clears their interrupt flags. It sets the falling edge
+as the interrupt enable because the button is on an "on" state when not pressed.<br />
 
-### Game Ideas
-#### Reaction
-This would be a 2 player game where your two players after resetting the processor press their buttons to initialize the game. After at least 5 seconds, one of the LEDs should turn on and your processor then has to determine who was the first person to press the button. The winner could be indicated by blinking particular LEDs. Once you get the core functionality working, you should also add false start protection so players who press the button too early are automatically disqualified.
+TA0CTL is set to TASSEL_1 + MC_1. This sets up ACLK at 32kHz and enables up mode for the timer.
+TA0CCTL1 is set equal to 0x10 to set TACCR1 to compare mode.
+Finally, TA0CCR1 is set to 500, so an interrupt is generated when TAR is equal to TA0CCR1.
 
-#### Rapid Pressing
-The object of this 2 player game would be to see who can press their button the fastest up to an arbitrary number of times, for example 50 times. Upon your processor starting up, each player should hold their button down to indicate the start of the game. From that point the LEDs could blink 3 times and after that, both players begin pressing the buttons as fast as possible. First player to the number of button presses wins and can be indicated by flashing LEDs. Remember! Since you are counting the number of times a button is pressed, you need to make sure that you are debouncing properly to ensure there is no inadvertent cheating.
+The processor is put into LPM4 to prepare for the interrupt from the button. <br />
+In the same line, GIE is enabled so the interrupt is not masked.
+__no_operation(); is used to make sure the processor does nothing else.<br />
+
+Everytime the timer interrupt is enabled, 
+player1 is compared to player2. If player 1 is higer,
+LED P3.0 is turned on. Else, LED P3.0 is turned off.<br />
+If either score is higher than 60,000, both scores are set to 0 to avoid overflow.<br />
+
+When either button is pressed, one of two button interrupts are enabled. These interrupts work similarly,
+so only one will be described.
+The interrupt temporarily disables the interrupt on the button pressed to avoid debouncing.
+Player 1 or player 2 is incremented.
+A led is toggled to show that the interrupt has been entered, and finally the corresponding flag is cleared
+so that the interrupt is available again.
+# How to implement the code
+To run this code, simply import it into code composer, then click build. 
+After you plug in your MSP430, hit debug, and click play. <br />
+Each player will try to hit his button as fast as he can. If player 1 win, the LED will light up. If player 2 win, the LED will be turned down. 

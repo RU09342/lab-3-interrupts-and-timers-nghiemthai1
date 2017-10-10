@@ -1,15 +1,36 @@
-# TIMER A Blink
-The TIMER peripherals can be used in many situations thanks to it flexibility in features. For this lab, you will be only scratching the surface as to what this peripheral can do. 
+# Read Me for Button interrupt
+Author: Thai Nghiem (collaborate with Ardit Pranvoku)
 
-## Up, Down, Continuous 
-There are a few different ways that the timer module can count. For starters, one of the easiest to initialize is Continuous counting where in the TIMER module will alert you when its own counting register overflows. Up mode allows you to utilize a Capture/Compare register to have the counter stop at a particular count and then start back over again. You can also set the TIMER to Up/Down mode where upon hitting a counter or the overflow, instead of setting the counter back to zero, it will count back down to zero. 
+Implements a timer based interrupt to blink the LED at a designated frequency.
+The watchdog timer must be stopped with the line 
+```c
+WDTCTL = WDTPW + WDTHOLD or WDTCTL = WDTPW | WDTHOLD.
+```
+Else, the processor will reset. <br />
+The desired led pins and bits must be set to 1 to configure it to be an output.
+The desired button pin and bit must be to 0 to configure it to be an input .<br />
+Also,  PXREN |= BITX; must be used to enable the pullup resistor for that button. <br />     
+TA0CTL is set to TASSEL_1 + MC_1. This sets up ACLK at 32kHz and enables up mode for the timer.
+TA0CCTL1 is set equal to 0x10 to set TACCR1 to compare mode.
+Finally, TA0CCR1 is set to 3000, so an interrupt is generated when TAR is equal to TA0CCR1.
 
-## Task
-Using the TIMER module instead of a software loop, control the speed of two LEDS blinking on your development boards. Experiment with the different counting modes available as well as the effect of the pre-dividers. Why would you ever want to use a pre-divider? What about the Capture and Compare registers? Your code should include a function (if you want, place it in its own .c and .h files) which can convert a desired Hz into the proper values required to operate the TIMER modules.
+The processor is put into LPM4 to prepare for the interrupt from the button.
+In the same line, GIE is enabled so the interrupt is not masked.
 
-### Extra Work
-#### Thinking with HALs
-So maybe up to this point you have noticed that your software is looking pretty damn similar to each other for each one of these boards. What if there was a way to abstract away all of the particulars for a processor and use the same functional C code for each board? Just for this simple problem, why don't you try and build a "config.h" file which using IFDEF statements can check to see what processor is on board and initialize particular registers based on that.
-
-#### Low Power Timers
-Since you should have already done a little with interrupts, why not build this system up using interrupts and when the processor is basically doing nothing other than burning clock cycles, drop it into a Low Power mode. Do a little research and figure out what some of these low power modes actually do to the processor, then try and use them in your code. If you really want to put your code to the test, using the MSP430FR5994 and the built in super cap, try and get your code to run for the longest amount of time only using that capacitor as your power source.
+The interrupt is set up using the lines
+```c
+#pragma vector=PORT5_VECTOR
+__interrupt void PORT_5(void){
+		//toggle the state of the LED
+}
+```
+During the interrupt, a switch case is used for TACCR1. This is done because TACCR0 is the only CCR 
+that can be used to generate an interrupt automatically. 
+## Changes across the boards
+The specific output pin number of each board for each LED and button must be changed accordingly <br />
+The msp430FRxxx series (FR6989, FR2311, and FR5994 in this case) need to use the line PM5CTL0 = ~LOCKLPM5 to disable the default high impedance on the board. 
+This high impedance serves to get rid of any cross currents, but is turned off later. <br />
+In addtion, the FR2311 does not have a Timer_A, so Timer_B must be used instead. 
+# How to implement the code
+To run this code, simply import it into code composer, then clikc build. 
+After you plug in your MSP430, hit debug. When you press the button, LED1 one the board should change its state

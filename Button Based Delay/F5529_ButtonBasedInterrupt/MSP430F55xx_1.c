@@ -38,9 +38,9 @@ void main(void)
     P1IES |= BIT1; //set as falling edge
     P1IFG &= ~(BIT1); //clear interrupt flag
 
-    TA0CTL = TASSEL_1 + MC_1 + ID_1; //Set up Timer A, Count up, and divider 2.
+    TA0CTL = TASSEL_1 + MC_1 + ID_2; //Set up Timer A, Count up, and divider 4.
     TA0CCTL0 = 0x10; //Set up compare mode for CCTL
-    TA0CCR0 = 6000; // LED will blink at 32kHZ*2/6000 = 10.6 Hz
+    TA0CCR0 = 1600; // LED will blink at 32kHZ*2/1600 = 10 Hz
 
     __enable_interrupt(); //enable interrupt
     _BIS_SR(LPM4_bits + GIE); // Enter Low Power Mode 4
@@ -63,7 +63,7 @@ __interrupt void PORT_1(void)
 
     if (buttonPressed == 0) //Falling-edge of a button
     {
-        TA1CTL = TASSEL_1+ MC_3; // Selecting Timer A and Count Up
+        TA1CTL = TASSEL_1+ MC_3; // Selecting Timer A and Count Continuous
         TA1CCR0 = 0xFFFF; //Initialize value of TA1CCR0
         TA1CCTL0 = CAP; //Capture mode
         buttonPressed = 1;
@@ -73,7 +73,7 @@ __interrupt void PORT_1(void)
     else if (buttonPressed == 1) //Rising-edge of a button
     {
         TA1CTL = MC_0; //Stop Counting
-        TA0CCR0 = TA1R; //Assgin new value for CCR0
+        TA0CCR0 = TA1R; //Assign new value for CCR0
         if (TA0CCR0 > 65500) //Fastest
             TA0CCR0 = 0xFFFF;
         if (TA0CCR0 < 2000) // Slowest

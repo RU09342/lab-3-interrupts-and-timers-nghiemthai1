@@ -11,8 +11,6 @@ Else, the processor will reset. <br />
 The desired led pins and bits must be set to 1 to configure it to be an output.
 The desired button pin and bit must be to 0 to configure it to be an input .<br />
 Also,  PXREN |= BITX; must be used to enable the pullup resistor for that button. <br />    
-By using the line PM5CTL0 = ~LOCKLPM5, the default high impedance on the board is disabled.
-This high impedance serves to get rid of any cross currents, but is turned off later. <br />
 The processor is put into LPM4 to prepare for the interrupt from the button. <br />
 In the same line, GIE is enabled so the interrupt is not masked. <br />
 
@@ -27,7 +25,9 @@ During the interrupt, the LED is toggled, and then a delay of 1000 cycles is act
 the frequency is low enough for the user to see the LED blink.<br />
 After, the interrupt flag for P5.5 is cleared so the interrupt can activate again with a new button press.
 ## Changes across the boards
-
+There is not much changes on the code across the 5 boards in this project, except for the specific output pin number for each LED and button. <br />
+However, the msp430FRxxx series (FR6989, FR2311, and FR5994 in this case) need to use the line PM5CTL0 = ~LOCKLPM5 to disable the default high impedance on the board. 
+This high impedance serves to get rid of any cross currents, but is turned off later. <br />
 # How to implement the code
-To run this code, simply import it into code composer, then clikc build. 
+To run this code, simply import it into code composer, then click build. 
 After you plug in your MSP430, hit debug. When you press the button, LED1 one the board should change its state
