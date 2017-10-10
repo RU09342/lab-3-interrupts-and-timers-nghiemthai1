@@ -22,6 +22,8 @@
 
 void main(void) {
     WDTCTL = WDTPW | WDTHOLD;// Stop watchdog timer
+	PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
+                                            // to activate previously configured port settings
 
     P1DIR |=BIT0; //set Port 1.0 output ---LED
 
