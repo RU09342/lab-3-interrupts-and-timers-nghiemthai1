@@ -1,95 +1,89 @@
-/* --COPYRIGHT--,BSD_EX
- * Copyright (c) 2014, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *******************************************************************************
- *
- *                       MSP430 CODE EXAMPLE DISCLAIMER
- *
- * MSP430 code examples are self-contained low-level programs that typically
- * demonstrate a single peripheral function or device feature in a highly
- * concise manner. For this the code may rely on the device's power-on default
- * register values and settings such as the clock configuration and care must
- * be taken when combining code from several examples to avoid potential side
- * effects. Also see www.ti.com/grace for a GUI- and www.ti.com/msp430ware
- * for an API functional library-approach to peripheral configuration.
- *
- * --/COPYRIGHT--*/
-//******************************************************************************
-//  MSP430FR231x Demo - Toggle P1.0 using software
+//  MSP430FR231x Demo
+//      Button Based Interrupt
 //
-//  Description: Toggle P1.0 every 0.1s using software.
-//  By default, FR231x select XT1 as FLL reference.
-//  If XT1 is present, the PxSEL(XIN & XOUT) needs to configure.
-//  If XT1 is absent, switch to select REFO as FLL reference automatically.
-//  XT1 is considered to be absent in this example.
-//  ACLK = default REFO ~32768Hz, MCLK = SMCLK = default DCODIV ~1MHz.
+//   Description: Interrupt a ongoing process by pushing a button. The delay time
+//              is based upon how long the button is pressed.
+//   ACLK = 32.768kHz, MCLK = SMCLK = default DCO~1MHz
 //
-//           MSP430FR231x
-//         ---------------
-//     /|\|               |
-//      | |               |
-//      --|RST            |
-//        |           P1.0|-->LED
+//                MSP430FR2311
+//             -----------------
+//         /|\|                 |
+//          | |                 |
+//          --|RST              |
+//            |                 |
+//            |             P1.0|-->LED
 //
-//   Darren Lu
-//   Texas Instruments Inc.
-//   July 2015
-//   Built with IAR Embedded Workbench v6.30 & Code Composer Studio v6.1 
+//   Thai Nghiema
+//   Rowan University
+//   September 2017
+//   Built with CCSv4 and IAR Embedded Workbench Version: 4.21
 //******************************************************************************
 #include <msp430.h>
 
-int main(void)
+int buttonPressed;
+
+void main(void)
 {
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
-
-    P2OUT &= ~BIT0;                         // Clear P2.0 output latch for a defined power-on state
-    P2DIR |= BIT0;                          // Set P2.0 to output direction
-
+    WDTCTL = WDTPW | WDTHOLD; //Stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
                                             // to activate previously configured port settings
 
+    P1DIR |= BIT0; //set Port 1.0 output ---LED
+
+    P1DIR &= ~(BIT1); //set Port 1.1 input --- pushbutton
+    P1REN |= BIT1; //enable pull-up resistor on
+    P1OUT |= BIT1;
 
 
-    while(1)
+    P1IE |= BIT1; //enable the interrupt on Port 1.1
+    P1IES |= BIT1; //set as falling edge
+    P1IFG &= ~(BIT1); //clear interrupt flag
+
+    TB0CTL = TBSSEL_1 + MC_1 + ID_2; //Set up Timer A, Count up, and divider 4.
+    TB0CCTL0 = 0x10; //Set up compare mode for CCTL
+    TB0CCR0 = 1600; // LED will blink at 32kHZ*2/1600 = 10 Hz
+
+    __enable_interrupt(); //enable interrupt
+    _BIS_SR(LPM4_bits + GIE); // Enter Low Power Mode 4
+}
+
+#pragma vector=TIMER0_B0_VECTOR
+__interrupt void Timer_B0(void)
+{
+
+    P1OUT ^= 0x01; //Toggle LED
+
+}
+
+#pragma vector=PORT1_VECTOR
+__interrupt void PORT_1(void)
+{
+    //Debouncing
+    P1IE &= ~BIT1;
+    __delay_cycles(1);
+
+    if (buttonPressed == 0) //Falling-edge of a button
     {
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
-        if (P1OUT & BIT0){
-                P2OUT ^= BIT0;                      // Toggle P2.0 using exclusive-OR
-                __delay_cycles(50000);             // Delay for 50000*(1/MCLK)=0.05s
-        }
+        TB1CTL = TBSSEL_1+ MC_3; // Selecting Timer A and Count Continuous
+        TB1CCR0 = 0xFFFF; //Initialize value of TA1CCR0
+        TB1CCTL0 = CAP; //Capture mode
+        buttonPressed = 1;
+        TB0CCR0 = 1; //Reset CCR0
+
+    }
+    else if (buttonPressed == 1) //Rising-edge of a button
+    {
+        TB1CTL = MC_0; //Stop Counting
+        TB0CCR0 = TB1R; //Assign new value for CCR0
+        if (TB0CCR0 > 65500) //Fastest
+            TB0CCR0 = 0xFFFF;
+        if (TB0CCR0 < 2000) // Slowest
+            TB0CCR0 = 2000;
+        TB1CTL = TBCLR; //Clear Timer A1
+        buttonPressed = 0;
     }
 
-
+    P1IES ^= BIT1; //toggle to set as rising edge
+    P1IE |= BIT1; // Enable interrupt
+    P1IFG &= ~(BIT1); // Clear flag
 }
